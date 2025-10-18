@@ -16,52 +16,56 @@ app.get('/', (req, res) => {
 
 const urls = []
 
-app.post('/api/shorturl', (req, res)=>{
-  const originalUrl = req.body.url
-  console.log('Received URL: ',originalUrl);
-  
-  try {
-    const parsedUrl = urlParser.parse(originalUrl)
+app.post('/api/shorturl', (req, res) => {
+  const originalUrl = req.body.url;
+  console.log('Received URL:', originalUrl);
 
-    if(!parsedUrl.hostname){
-      return res.json({error: "Invalid URL"})
+  try {
+    const parsedUrl = urlParser.parse(originalUrl);
+    const urlPattern = /^https?:\/\/.+/i;
+
+    // Validate protocol and structure
+    if (!urlPattern.test(originalUrl) || !parsedUrl.hostname) {
+      return res.json({ error: 'invalid url' });
     }
-    dns.lookup(parsedUrl.hostname, (err, address)=>{
+
+    // Check DNS validity
+    dns.lookup(parsedUrl.hostname, (err) => {
       if (err) {
         console.log('❌ DNS Lookup failed:', err);
-        return res.json({ error: 'Invalid URL' });
+        return res.json({ error: 'invalid url' });
       }
-      const urlPattern = /^https?:\/\/.+/i;
 
-    if(!urlPattern.test(originalUrl)){
-    return res.json({error: "Invalid URL"})
-  }
-  const shortUrl = urls.length + 1
-  urls.push({original_url: originalUrl, short_url: shortUrl})
+      // Generate short URL
+      const shortUrl = urls.length + 1;
+      urls.push({ original_url: originalUrl, short_url: shortUrl });
 
-  return res.json({
-    original_url: originalUrl, short_url: shortUrl
-  })
-    })
+      return res.json({
+        original_url: originalUrl,
+        short_url: shortUrl,
+      });
+    });
   } catch (error) {
     console.error('⚠️ URL parse error:', error);
-    return res.json({ error: 'Invalid URL' });
+    return res.json({ error: 'invalid url' });
+  }
+});
+
+app.get('/api/shorturl/:id', (req, res) => {
+  const { id } = req.params;
+  const shortUrl = parseInt(id);
+
+  const found = urls.find((entry) => entry.short_url === shortUrl);
+
+  if (!found) {
+    return res.json({ error: 'invalid url' });
   }
 
-})
+  res.redirect(found.original_url);
+});
 
-app.get('/api/shorturl/:id', (req, res)=>{
-  const { id } = req.params
-  const shortUrl = parseInt(id)
 
-  const found = urls.find(entry => entry.short_url === shortUrl)
 
-  if(!found){
-    return res.json({error: 'No short URL found for the given input'})
-  }
-
-  res.redirect(found.original_url)
-})
 
 // Start the server
 const PORT = 3000;
