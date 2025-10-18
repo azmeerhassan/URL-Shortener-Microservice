@@ -48,11 +48,20 @@ app.post('/api/shorturl', (req, res)=>{
     return res.json({ error: 'Invalid URL' });
   }
 
-  
-
-  
 })
 
+app.get('/api/shorturl/:id', (req, res)=>{
+  const { id } = req.params
+  const shortUrl = parseInt(id)
+
+  const found = urls.find(entry => entry.short_url === shortUrl)
+
+  if(!found){
+    return res.json({error: 'No short URL found for the given input'})
+  }
+
+  res.redirect(found.original_url)
+})
 
 // Start the server
 const PORT = 3000;
