@@ -18,21 +18,30 @@ app.get('/', (req, res) => {
 // POST: shorten URL
 app.post('/api/shorturl', (req, res) => {
   let originalUrl = req.body.url;
+  console.log('Received URL:', originalUrl);
 
-  // Check basic format first
+  // ✅ Check if it starts with http:// or https://
   const urlPattern = /^https?:\/\/.+/i;
   if (!urlPattern.test(originalUrl)) {
     return res.json({ error: 'invalid url' });
   }
 
-  // Parse and DNS lookup
-  const parsedUrl = urlParser.parse(originalUrl);
+  // ✅ Parse the URL
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(originalUrl);
+  } catch (error) {
+    return res.json({ error: 'invalid url' });
+  }
+
+  // ✅ DNS lookup to verify the hostname
   dns.lookup(parsedUrl.hostname, (err) => {
     if (err) {
+      console.log('❌ DNS Lookup failed:', err);
       return res.json({ error: 'invalid url' });
     }
 
-    // Create short URL entry
+    // ✅ If valid, store and respond
     const shortUrl = urls.length + 1;
     urls.push({ original_url: originalUrl, short_url: shortUrl });
 
@@ -42,6 +51,7 @@ app.post('/api/shorturl', (req, res) => {
     });
   });
 });
+
 
 // GET: redirect
 app.get('/api/shorturl/:short_url', (req, res) => {
