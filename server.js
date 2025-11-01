@@ -1,7 +1,6 @@
 const express = require('express');
-const dns = require('dns')
+const dns = require('dns');
 const urlParser = require('url');
-const { error } = require('console');
 
 const app = express();
 
@@ -9,66 +8,57 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Default route
+// Root route
 app.get('/', (req, res) => {
   res.send('URL Shortener Microservice is running 🚀');
 });
 
-const urls = []
+const urls = [];
 
+// POST endpoint
 app.post('/api/shorturl', (req, res) => {
-  const originalUrl = req.body.url;
-  console.log('Received URL:', originalUrl);
+  const original_url = req.body.url;
+  console.log('Received URL:', original_url);
 
-  try {
-    const parsedUrl = urlParser.parse(originalUrl);
-    const urlPattern = /^https?:\/\/.+/i;
+  // Validate general URL structure
+  const urlPattern = /^https?:\/\/.+/i;
+  if (!urlPattern.test(original_url)) {
+    return res.json({ error: 'invalid url' });
+  }
 
-    // Validate protocol and structure
-    if (!urlPattern.test(originalUrl) || !parsedUrl.hostname) {
+  // Parse the URL
+  const parsedUrl = urlParser.parse(original_url);
+  if (!parsedUrl.hostname) {
+    return res.json({ error: 'invalid url' });
+  }
+
+  // DNS lookup to ensure domain exists
+  dns.lookup(parsedUrl.hostname, (err) => {
+    if (err) {
+      console.log('❌ DNS lookup failed:', err);
       return res.json({ error: 'invalid url' });
     }
 
-    // Check DNS validity
-    dns.lookup(parsedUrl.hostname, (err) => {
-      if (err) {
-        console.log('❌ DNS Lookup failed:', err);
-        return res.json({ error: 'invalid url' });
-      }
+    // Store and return mapping
+    const short_url = urls.length + 1;
+    urls.push({ original_url, short_url });
 
-      // Generate short URL
-      const shortUrl = urls.length + 1;
-      urls.push({ original_url: originalUrl, short_url: shortUrl });
-
-      return res.json({
-        original_url: originalUrl,
-        short_url: shortUrl,
-      });
-    });
-  } catch (error) {
-    console.error('⚠️ URL parse error:', error);
-    return res.json({ error: 'invalid url' });
-  }
+    return res.json({ original_url, short_url });
+  });
 });
 
-app.get('/api/shorturl/:id', (req, res) => {
-  const { id } = req.params;
-  const shortUrl = parseInt(id);
-
-  const found = urls.find((entry) => entry.short_url === shortUrl);
+// GET endpoint
+app.get('/api/shorturl/:short_url', (req, res) => {
+  const short_url = parseInt(req.params.short_url);
+  const found = urls.find((entry) => entry.short_url === short_url);
 
   if (!found) {
     return res.json({ error: 'invalid url' });
   }
 
-  res.redirect(found.original_url);
+  return res.redirect(found.original_url);
 });
 
-
-
-
-// Start the server
+// Start server
 const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
